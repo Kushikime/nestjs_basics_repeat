@@ -1,34 +1,46 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { TaskDTO } from './task.dto';
+import { PrismaService } from 'src/prisma.service';
 
 @Injectable()
 export class TaskService {
     private tasks: any[] = [];
     private taskId: number = 0;
 
+    constructor(private readonly prismaService: PrismaService) { }
+
+
+    async getById(id: string) {
+        const task = await this.prismaService.task.findUnique({
+            where: {
+                id: Number(id)
+            }
+        })
+
+        if (!task) throw new NotFoundException('Task not found')
+        return task
+    }
+
     getAll() {
-        return this.tasks
+        return this.prismaService.task.findMany()
     }
 
-    create(dto: TaskDTO) {
-        this.taskId += 1;
-        const newTask = {
-            id: this.taskId,
-            name: dto.name,
-            isDone: false
-        }
-        this.tasks.push(newTask)
-
-        return newTask
+    create(data: TaskDTO) {
+        return this.prismaService.task.create({
+            data
+        })
     }
 
-    toggleTask(id: string) {
-        try {
-            const task = this.tasks.find((task) => task.id === Number(id))
-            task.isDone = !task.isDone;
-            return task;
-        } catch (err) {
-            return 'No such task'
-        }
+    async toggleTask(id: string) {
+        const task = await this.getById(id);
+
+        return this.prismaService.task.update({
+            data: {
+                isDone: !task.isDone,
+            },
+            where: {
+                id: task.id
+            }
+        })
     }
 }
